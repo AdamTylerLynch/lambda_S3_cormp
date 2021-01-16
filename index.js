@@ -2,8 +2,10 @@ const https = require('https');
 // const http = require('http');
 // const util = require('util');
 const AWS = require('aws-sdk');
-const S3 = new AWS.S3();
+const s3 = new AWS.S3();
 
+
+outputEnvironmentVariables();
 
 exports.handler = async (event) => {
     console.log('testing');
@@ -38,15 +40,32 @@ exports.handler = async (event) => {
         });
     });
    
+    console.log(response);
+    
     //store data to S3
     var formattedJson = JSON.stringify(dataString);
     console.log("Buoy data json=" + formattedJson);
-    await putObjectToS3(formattedJson, S3_FILENAME_PRE).then(
-        (value) => console.log('promise recieved=' + value)
-    );
+    
+    
+    console.log("writing to s3 " + S3_FILENAME_PRE );
+    var params = {
+      Bucket : process.env.s3_bucket,
+      Key : S3_FILENAME_PRE + ".json",
+      Body : formattedJson
+    };
+    try {
+        console.log('put to s3');
+        const putResult = await s3.putObject(params).promise(); 
+    
+        console.log('successful put to s3');
+    } catch (error) {
+        console.log("error storing to s3=" + error);
+        return;
+    }    
+
    
     console.log('done testing');    
-    return response;
+    return "Ok";
 
 };
 
@@ -61,30 +80,8 @@ function getTodayDate() {
     return dateString;
 }
 
-async function putObjectToS3(data, nameOfFile) {
-  //Write to file
-  console.log("writing to s3 " + nameOfFile );
-  var s3 = new AWS.S3();
-  var params = {
-      Bucket : process.env.s3_bucket,
-      Key : nameOfFile + ".json",
-      Body : data
-  }
-    try {
-        console.log('put to s3');
-        S3.putObject(params).promise();
-        console.log('successful put to s3');
-    } catch (e) {
-        console.log("error storing to s3=" + e, e.stack)
-    }
-//   S3.putObject(params, function(err, data) {
-//     if (err) console.log("error storing to s3=" + err, err.stack); // an error occurred
-//     else     console.log("Put to s3 should have worked: " + data);           // successful response
-//   }).promise();
+
+function outputEnvironmentVariables() {
+    console.log('s3_bucket: ' + process.env.s3_bucket);
+    console.log('api_url: ' + process.env.api_url);
 }
-
-
-    function outputEnvironmentVariables() {
-        console.log('s3_bucket: ' + process.env.s3_bucket);
-        console.log('api_url: ' + process.env.api_url);
-    }
